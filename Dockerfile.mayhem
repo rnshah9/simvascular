@@ -1,0 +1,28 @@
+FROM --platform=linux/amd64 ubuntu:20.04 as builder
+
+RUN apt-get update
+RUN DEBIAN_FRONTEND=noninteractive apt-get install -y vim less file locate && echo 'alias locate="updatedb && locate"' >> ~/.bashrc
+RUN DEBIAN_FRONTEND=noninteractive apt-get install -y build-essential cmake
+RUN DEBIAN_FRONTEND=noninteractive apt-get install -y wget curl
+RUN DEBIAN_FRONTEND=noninteractive apt-get install -y sudo
+
+COPY . /repo
+WORKDIR /repo/Externals/Prep/2019.06
+RUN ./ubuntu-20-prep.sh
+ENV USER=root
+WORKDIR /repo/Externals/Make/2019.06
+RUN bash ./build-sv-externals-linux.sh
+WORKDIR /repo/build
+RUN cmake ..
+RUN make -j8
+WORKDIR /repo/build/SimVascular-build/bin
+ENV LD_LIBRARY_PATH=/repo/build/Externals-build/svExternals/bin/itk-4.13.2/lib/:/repo/build/Externals-build/svExternals/bin/vtk-8.1.1/lib/:/repo/build/Externals-build/svExternals/bin/opencascade-7.3.0/lib:/repo/build/Externals-build/svExternals/bin/qt-5.11.3/Tools/QtCreator/lib/Qt/lib/:/repo/build/Externals-build/svExternals/bin/mitk-2018.04.2/lib/:/repo/build/Externals-build/svExternals/bin/mitk-2018.04.2/lib/plugins/:/repo/build/Externals-build/svExternals/bin/hdf5-1.10.1/lib/:/repo/build/Externals-build/svExternals/bin/gdcm-2.6.3/lib/:/repo/build/Externals-build/svExternals/bin/freetype-2.6.3/lib/
+
+RUN mkdir -p /deps
+RUN ldd /repo/build/SimVascular-build/bin/simvascular | tr -s '[:blank:]' '\n' | grep '^/' | xargs -I % sh -c 'cp % /deps;'
+
+FROM ubuntu:20.04 as package
+
+COPY --from=builder /deps /deps
+COPY --from=builder /repo/build/SimVascular-build/bin/simvascular /repo/build/SimVascular-build/bin/simvascular
+ENV LD_LIBRARY_PATH=/deps

@@ -1,0 +1,6 @@
+project: simvascular
+target: simvascular
+image: ghcr.io/rnshah9/playground:simvascular
+#t
+cmds:
+  - cmd: /repo/build/SimVascular-build/bin/simvascular --tcl
